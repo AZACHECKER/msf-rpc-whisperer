@@ -9,6 +9,9 @@ interface VRInterfaceProps {
 export const VRInterface = ({ onConfigSaved }: VRInterfaceProps) => {
   const sceneRef = useRef<HTMLElement>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [activePanel, setActivePanel] = useState<string | null>(null)
+  const [inputValue, setInputValue] = useState('')
+  const [isInputActive, setIsInputActive] = useState(false)
   const { activeSessions, vulnerabilities, exploitsInQueue, networkNodes } = useSystemData()
 
   useEffect(() => {
@@ -46,6 +49,22 @@ export const VRInterface = ({ onConfigSaved }: VRInterfaceProps) => {
                 })
               }
             })
+
+            // Input field component
+            AFRAME.registerComponent('input-field', {
+              schema: { 
+                placeholder: { type: 'string', default: 'Enter text...' },
+                value: { type: 'string', default: '' }
+              },
+              init: function() {
+                this.el.addEventListener('click', () => {
+                  const event = new CustomEvent('input-focus', { 
+                    detail: { id: this.el.id } 
+                  })
+                  window.dispatchEvent(event)
+                })
+              }
+            })
           }
         }, 100)
       } catch (error) {
@@ -54,11 +73,32 @@ export const VRInterface = ({ onConfigSaved }: VRInterfaceProps) => {
     }
 
     loadAFrame()
+
+    // Event listeners for panel selection and input focus
+    const handlePanelSelect = (event: any) => {
+      setActivePanel(event.detail.panel)
+    }
+
+    const handleInputFocus = (event: any) => {
+      setIsInputActive(true)
+      const input = prompt('Enter value:')
+      if (input !== null) {
+        setInputValue(input)
+      }
+      setIsInputActive(false)
+    }
+
+    window.addEventListener('panel-selected', handlePanelSelect)
+    window.addEventListener('input-focus', handleInputFocus)
+
+    return () => {
+      window.removeEventListener('panel-selected', handlePanelSelect)
+      window.removeEventListener('input-focus', handleInputFocus)
+    }
   }, [])
 
-  const handlePanelSelect = (panelType: string) => {
-    console.log('Panel selected:', panelType)
-    // Handle panel selection logic here
+  const closePanel = () => {
+    setActivePanel(null)
   }
 
   if (isLoading) {
@@ -101,7 +141,7 @@ export const VRInterface = ({ onConfigSaved }: VRInterfaceProps) => {
             material="color: cyan; shader: flat"
             animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
             animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
-          ></a-cursor>
+          />
         </a-camera>
 
         {/* Central Hub */}
@@ -259,25 +299,241 @@ export const VRInterface = ({ onConfigSaved }: VRInterfaceProps) => {
               width="6"
             ></a-text>
           </a-plane>
+        </a-entity>
 
-          {/* AI Assistant Avatar */}
-          <a-entity position="0 3 -1">
-            <a-box
-              width="0.8"
-              height="0.8"
-              depth="0.8"
-              material="color: #00ffff; transparent: true; opacity: 0.7"
-              animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"
-            ></a-box>
-            <a-text
-              position="0 -1 0"
-              align="center"
-              value="AI ASSISTANT"
-              color="#00ffff"
-              font="msdf: #font"
-              width="6"
-            ></a-text>
+        {/* 3D Modal Windows */}
+        {activePanel && (
+          <a-entity position="0 0 0">
+            <a-plane
+              position="0 2 -1"
+              width="8"
+              height="5"
+              material="color: #000000; transparent: true; opacity: 0.95"
+              hologram-panel
+            >
+              {/* Close Button */}
+              <a-plane
+                position="3.5 2 0.01"
+                width="0.5"
+                height="0.5"
+                material="color: #ff0000; transparent: true; opacity: 0.8"
+                panel-click="close"
+                onClick={closePanel}
+              >
+                <a-text
+                  position="0 0 0.01"
+                  align="center"
+                  value="X"
+                  color="#ffffff"
+                  font="msdf: #font"
+                  width="10"
+                ></a-text>
+              </a-plane>
+
+              {/* Modal Content based on activePanel */}
+              {activePanel === 'terminal' && (
+                <a-entity>
+                  <a-text
+                    position="0 1.5 0.01"
+                    align="center"
+                    value="TERMINAL INTERFACE"
+                    color="#00ff00"
+                    font="msdf: #font"
+                    width="8"
+                  ></a-text>
+                  
+                  {/* Input Field */}
+                  <a-plane
+                    id="terminal-input"
+                    position="0 0 0.01"
+                    width="6"
+                    height="0.5"
+                    material="color: #003300; transparent: true; opacity: 0.8"
+                    input-field="placeholder: Enter command..."
+                  >
+                    <a-text
+                      position="-2.8 0 0.01"
+                      align="left"
+                      value={inputValue || 'Enter command...'}
+                      color="#88ff88"
+                      font="msdf: #font"
+                      width="6"
+                    ></a-text>
+                  </a-plane>
+                  
+                  {/* Execute Button */}
+                  <a-plane
+                    position="0 -1 0.01"
+                    width="2"
+                    height="0.5"
+                    material="color: #006600; transparent: true; opacity: 0.8"
+                    panel-click="execute"
+                  >
+                    <a-text
+                      position="0 0 0.01"
+                      align="center"
+                      value="EXECUTE"
+                      color="#ffffff"
+                      font="msdf: #font"
+                      width="8"
+                    ></a-text>
+                  </a-plane>
+                </a-entity>
+              )}
+
+              {activePanel === 'exploits' && (
+                <a-entity>
+                  <a-text
+                    position="0 1.5 0.01"
+                    align="center"
+                    value="EXPLOIT MANAGER"
+                    color="#ff6600"
+                    font="msdf: #font"
+                    width="8"
+                  ></a-text>
+                  
+                  {/* Target Input */}
+                  <a-plane
+                    id="target-input"
+                    position="0 0.5 0.01"
+                    width="6"
+                    height="0.5"
+                    material="color: #330000; transparent: true; opacity: 0.8"
+                    input-field="placeholder: Target IP..."
+                  >
+                    <a-text
+                      position="-2.8 0 0.01"
+                      align="left"
+                      value={inputValue || 'Target IP...'}
+                      color="#ff8888"
+                      font="msdf: #font"
+                      width="6"
+                    ></a-text>
+                  </a-plane>
+                  
+                  {/* Start Attack Button */}
+                  <a-plane
+                    position="0 -0.5 0.01"
+                    width="3"
+                    height="0.5"
+                    material="color: #660000; transparent: true; opacity: 0.8"
+                    panel-click="attack"
+                  >
+                    <a-text
+                      position="0 0 0.01"
+                      align="center"
+                      value="START ATTACK"
+                      color="#ffffff"
+                      font="msdf: #font"
+                      width="8"
+                    ></a-text>
+                  </a-plane>
+                </a-entity>
+              )}
+
+              {activePanel === 'settings' && (
+                <a-entity>
+                  <a-text
+                    position="0 1.5 0.01"
+                    align="center"
+                    value="METASPLOIT SETTINGS"
+                    color="#ff00ff"
+                    font="msdf: #font"
+                    width="8"
+                  ></a-text>
+                  
+                  {/* Host Input */}
+                  <a-plane
+                    id="host-input"
+                    position="0 0.5 0.01"
+                    width="6"
+                    height="0.5"
+                    material="color: #330033; transparent: true; opacity: 0.8"
+                    input-field="placeholder: Host..."
+                  >
+                    <a-text
+                      position="-2.8 0 0.01"
+                      align="left"
+                      value={inputValue || 'localhost'}
+                      color="#ff88ff"
+                      font="msdf: #font"
+                      width="6"
+                    ></a-text>
+                  </a-plane>
+                  
+                  {/* Save Button */}
+                  <a-plane
+                    position="0 -0.5 0.01"
+                    width="2"
+                    height="0.5"
+                    material="color: #660066; transparent: true; opacity: 0.8"
+                    panel-click="save"
+                  >
+                    <a-text
+                      position="0 0 0.01"
+                      align="center"
+                      value="SAVE"
+                      color="#ffffff"
+                      font="msdf: #font"
+                      width="8"
+                    ></a-text>
+                  </a-plane>
+                </a-entity>
+              )}
+
+              {activePanel === 'sessions' && (
+                <a-entity>
+                  <a-text
+                    position="0 1.5 0.01"
+                    align="center"
+                    value="ACTIVE SESSIONS"
+                    color="#0088ff"
+                    font="msdf: #font"
+                    width="8"
+                  ></a-text>
+                  
+                  <a-text
+                    position="0 0 0.01"
+                    align="center"
+                    value={`Active Sessions: ${activeSessions}`}
+                    color="#88aaff"
+                    font="msdf: #font"
+                    width="6"
+                  ></a-text>
+                  
+                  {activeSessions === 0 && (
+                    <a-text
+                      position="0 -0.5 0.01"
+                      align="center"
+                      value="No active sessions"
+                      color="#888888"
+                      font="msdf: #font"
+                      width="6"
+                    ></a-text>
+                  )}
+                </a-entity>
+              )}
+            </a-plane>
           </a-entity>
+        )}
+
+        {/* AI Assistant Avatar */}
+        <a-entity position="0 3 -1">
+          <a-box
+            width="0.8"
+            height="0.8"
+            depth="0.8"
+            material="color: #00ffff; transparent: true; opacity: 0.7"
+            animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"
+          ></a-box>
+          <a-text
+            position="0 -1 0"
+            align="center"
+            value="AI ASSISTANT"
+            color="#00ffff"
+            font="msdf: #font"
+            width="6"
+          ></a-text>
         </a-entity>
 
         {/* Particle Systems */}

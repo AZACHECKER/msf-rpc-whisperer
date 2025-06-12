@@ -44,8 +44,8 @@ export const MainInterface = ({ onConfigSaved }: MainInterfaceProps) => {
         </Button>
       </div>
 
-      {/* Быстрые действия в 3D режиме */}
-      {is3DMode && (
+      {/* Быстрые действия только в 2D режиме */}
+      {!is3DMode && (
         <div className="absolute top-4 left-4 z-50 space-y-2">
           <Button
             onClick={() => openModal('settings')}
@@ -93,13 +93,14 @@ export const MainInterface = ({ onConfigSaved }: MainInterfaceProps) => {
         <ChatInterface onConfigSaved={onConfigSaved} />
       )}
 
-      {/* Модальные окна для 3D режима */}
-      {modalType && (
+      {/* Модальные окна только для 2D режима */}
+      {modalType && !is3DMode && (
         <VRModal
           isOpen={true}
           onClose={closeModal}
           type={modalType}
           onConfigSaved={onConfigSaved}
+          is3DMode={is3DMode}
         />
       )}
     </div>

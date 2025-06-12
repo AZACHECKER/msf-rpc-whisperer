@@ -12,10 +12,16 @@ interface VRModalProps {
   onClose: () => void
   type: 'settings' | 'terminal' | 'exploits' | 'sessions'
   onConfigSaved?: (config: any) => void
+  is3DMode?: boolean
 }
 
-export const VRModal = ({ isOpen, onClose, type, onConfigSaved }: VRModalProps) => {
+export const VRModal = ({ isOpen, onClose, type, onConfigSaved, is3DMode = false }: VRModalProps) => {
   const { sessionList, activeSessions } = useSystemData()
+
+  // If in 3D mode, don't render traditional modal
+  if (is3DMode) {
+    return null
+  }
 
   const getModalContent = () => {
     switch (type) {
