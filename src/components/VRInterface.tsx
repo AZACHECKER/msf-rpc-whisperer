@@ -1,369 +1,303 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useSystemData } from '@/hooks/useSystemData'
-import { useToast } from '@/hooks/use-toast'
-
-// A-Frame типы
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'a-scene': any
-      'a-entity': any
-      'a-box': any
-      'a-plane': any
-      'a-text': any
-      'a-sphere': any
-      'a-camera': any
-      'a-light': any
-      'a-sky': any
-      'a-assets': any
-      'a-mixin': any
-      'a-cylinder': any
-      'a-ring': any
-      'a-animation': any
-    }
-  }
-}
 
 interface VRInterfaceProps {
   onConfigSaved?: (config: any) => void
 }
 
 export const VRInterface = ({ onConfigSaved }: VRInterfaceProps) => {
-  const [activePanel, setActivePanel] = useState<string | null>(null)
-  const [isVRReady, setIsVRReady] = useState(false)
-  const sceneRef = useRef<any>(null)
-  const { sessionList, activeSessions, vulnerabilities } = useSystemData()
-  const { toast } = useToast()
+  const sceneRef = useRef<HTMLElement>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const { activeSessions, vulnerabilities, exploitsInQueue, networkNodes } = useSystemData()
 
   useEffect(() => {
-    // Динамическая загрузка A-Frame
     const loadAFrame = async () => {
-      if (typeof window !== 'undefined' && !window.AFRAME) {
-        const script = document.createElement('script')
-        script.src = 'https://aframe.io/releases/1.4.0/aframe.min.js'
-        script.onload = () => {
-          setIsVRReady(true)
-          // Дополнительные компоненты A-Frame
-          const environmentScript = document.createElement('script')
-          environmentScript.src = 'https://cdn.jsdelivr.net/gh/supermedium/aframe-environment-component@master/dist/aframe-environment-component.min.js'
-          document.head.appendChild(environmentScript)
-        }
-        document.head.appendChild(script)
-      } else if (window.AFRAME) {
-        setIsVRReady(true)
+      try {
+        await import('aframe')
+        setIsLoading(false)
+        
+        // Register custom components after A-Frame loads
+        setTimeout(() => {
+          if (typeof window !== 'undefined' && (window as any).AFRAME) {
+            const AFRAME = (window as any).AFRAME
+            
+            // Custom hologram panel component
+            AFRAME.registerComponent('hologram-panel', {
+              init: function() {
+                this.el.addEventListener('mouseenter', () => {
+                  this.el.setAttribute('animation', 'property: scale; to: 1.1 1.1 1.1; dur: 200')
+                })
+                this.el.addEventListener('mouseleave', () => {
+                  this.el.setAttribute('animation', 'property: scale; to: 1 1 1; dur: 200')
+                })
+              }
+            })
+
+            // Click handler component
+            AFRAME.registerComponent('panel-click', {
+              schema: { type: 'string' },
+              init: function() {
+                this.el.addEventListener('click', () => {
+                  const event = new CustomEvent('panel-selected', { 
+                    detail: { panel: this.data } 
+                  })
+                  window.dispatchEvent(event)
+                })
+              }
+            })
+          }
+        }, 100)
+      } catch (error) {
+        console.error('Error loading A-Frame:', error)
       }
     }
 
     loadAFrame()
   }, [])
 
-  const handlePanelClick = (panelType: string) => {
-    setActivePanel(activePanel === panelType ? null : panelType)
-    toast({
-      title: "Панель активирована",
-      description: `Открыта панель: ${panelType}`,
-    })
+  const handlePanelSelect = (panelType: string) => {
+    console.log('Panel selected:', panelType)
+    // Handle panel selection logic here
   }
 
-  if (!isVRReady) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-black text-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-400 mx-auto mb-4"></div>
-          <p>Загрузка 3D интерфейса...</p>
-        </div>
+      <div className="w-full h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="text-cyan-400 text-xl animate-pulse">Загрузка 3D интерфейса...</div>
       </div>
     )
   }
 
   return (
-    <div className="w-full h-screen relative">
-      <a-scene
+    <div className="w-full h-screen vr-container">
+      <a-scene 
         ref={sceneRef}
-        vr-mode-ui="enabled: true"
         embedded
-        style={{ width: '100%', height: '100%' }}
-        background="color: #000010"
-        environment="preset: starry; groundColor: #000020"
+        style={{ height: '100vh', width: '100vw' }}
+        background="color: #000011"
+        fog="type: exponential; color: #000033; density: 0.1"
+        vr-mode-ui="enabled: true"
       >
-        {/* Ассеты */}
+        {/* Assets */}
         <a-assets>
-          <a-mixin
-            id="hologram"
-            material="color: #00ffff; transparent: true; opacity: 0.8; shader: flat"
-            animation__mouseenter="property: material.opacity; to: 1; startEvents: mouseenter; dur: 200"
-            animation__mouseleave="property: material.opacity; to: 0.8; startEvents: mouseleave; dur: 200"
-          />
-          <a-mixin
-            id="neon-text"
-            text="color: #00ffff; font: kelsonsans; align: center"
-          />
+          <a-asset-item id="font" src="https://cdn.aframe.io/fonts/Roboto-msdf.json"></a-asset-item>
         </a-assets>
 
-        {/* Освещение */}
-        <a-light type="ambient" color="#002244" intensity="0.3"/>
-        <a-light 
-          type="point" 
-          position="0 5 0" 
-          color="#00ffff" 
-          intensity="0.5"
-          animation="property: intensity; to: 0.8; dir: alternate; dur: 2000; loop: true"
-        />
+        {/* Lighting */}
+        <a-light type="ambient" color="#004" intensity="0.5"></a-light>
+        <a-light type="point" position="0 10 0" color="#00ffff" intensity="2"></a-light>
+        <a-light type="point" position="-10 5 -10" color="#ff00ff" intensity="1"></a-light>
 
-        {/* Центральная консоль */}
-        <a-entity id="main-console" position="0 1.6 -3">
-          {/* Главная голографическая панель */}
-          <a-plane
-            mixin="hologram"
-            width="4"
-            height="2.5"
-            position="0 0 0"
-            class="clickable"
-            cursor-listener
-          />
-          
-          {/* Заголовок */}
-          <a-text
-            mixin="neon-text"
-            value="METASPLOIT AI FRAMEWORK"
-            position="0 1 0.01"
-            scale="1.2 1.2 1"
-            animation="property: scale; to: 1.3 1.3 1; dir: alternate; dur: 3000; loop: true"
-          />
-
-          {/* Статистика */}
-          <a-text
-            mixin="neon-text"
-            value={`Активных сессий: ${activeSessions}`}
-            position="-1.5 0.3 0.01"
-            scale="0.8 0.8 1"
-          />
-          
-          <a-text
-            mixin="neon-text"
-            value={`Уязвимостей: ${vulnerabilities}`}
-            position="1.5 0.3 0.01"
-            scale="0.8 0.8 1"
-          />
-
-          {/* Индикаторы состояния */}
-          <a-sphere
-            position="-1.5 -0.2 0.02"
-            radius="0.1"
-            color={activeSessions > 0 ? "#00ff00" : "#ff0000"}
-            animation="property: rotation; to: 0 360 0; dur: 2000; loop: true"
-          />
-          
-          <a-sphere
-            position="1.5 -0.2 0.02"
-            radius="0.1"
-            color={vulnerabilities > 0 ? "#ff6600" : "#666666"}
-            animation="property: rotation; to: 0 360 0; dur: 2000; loop: true"
-          />
-        </a-entity>
-
-        {/* Панель терминала (слева) */}
-        <a-entity 
-          id="terminal-panel" 
-          position="-4 1.6 -2"
-          visible={activePanel === 'terminal' || !activePanel}
-        >
-          <a-plane
-            mixin="hologram"
-            width="3"
-            height="2"
-            rotation="0 20 0"
-            class="clickable"
-            cursor-listener
-          />
-          <a-text
-            mixin="neon-text"
-            value="TERMINAL"
-            position="0 0.8 0.01"
-            rotation="0 20 0"
-            scale="0.8 0.8 1"
-          />
-          <a-text
-            value="msf > sessions -l"
-            position="0 0.2 0.01"
-            rotation="0 20 0"
-            color="#00ff00"
-            scale="0.5 0.5 1"
-          />
-          <a-text
-            value="msf > use exploit/multi/handler"
-            position="0 -0.1 0.01"
-            rotation="0 20 0"
-            color="#00ff00"
-            scale="0.5 0.5 1"
-          />
-        </a-entity>
-
-        {/* Панель эксплойтов (справа) */}
-        <a-entity 
-          id="exploits-panel" 
-          position="4 1.6 -2"
-          visible={activePanel === 'exploits' || !activePanel}
-        >
-          <a-plane
-            mixin="hologram"
-            width="3"
-            height="2"
-            rotation="0 -20 0"
-            class="clickable"
-            cursor-listener
-          />
-          <a-text
-            mixin="neon-text"
-            value="EXPLOITS"
-            position="0 0.8 0.01"
-            rotation="0 -20 0"
-            scale="0.8 0.8 1"
-          />
-          <a-text
-            value="• Windows SMB"
-            position="0 0.3 0.01"
-            rotation="0 -20 0"
-            color="#ff6600"
-            scale="0.5 0.5 1"
-          />
-          <a-text
-            value="• Linux SSH"
-            position="0 0.0 0.01"
-            rotation="0 -20 0"
-            color="#ff6600"
-            scale="0.5 0.5 1"
-          />
-          <a-text
-            value="• Web PHP"
-            position="0 -0.3 0.01"
-            rotation="0 -20 0"
-            color="#ff6600"
-            scale="0.5 0.5 1"
-          />
-        </a-entity>
-
-        {/* Панель сессий (внизу) */}
-        <a-entity 
-          id="sessions-panel" 
-          position="0 0.5 -3"
-          visible={activePanel === 'sessions' || !activePanel}
-        >
-          <a-plane
-            mixin="hologram"
-            width="6"
-            height="1.5"
-            class="clickable"
-            cursor-listener
-          />
-          <a-text
-            mixin="neon-text"
-            value="ACTIVE SESSIONS"
-            position="0 0.5 0.01"
-            scale="0.8 0.8 1"
-          />
-          {sessionList.slice(0, 3).map((session: any, index: number) => (
-            <a-text
-              key={session.id}
-              value={`Session ${session.session_id || index + 1}: ${session.target_host || 'localhost'}`}
-              position={`${-2 + index * 2} 0 0.01`}
-              color="#00ff00"
-              scale="0.4 0.4 1"
-            />
-          ))}
-        </a-entity>
-
-        {/* AI Ассистент */}
-        <a-entity id="ai-assistant" position="0 2.5 -1">
-          <a-sphere
-            radius="0.3"
-            color="#4400ff"
-            animation="property: rotation; to: 0 360 0; dur: 4000; loop: true"
-            animation__pulse="property: scale; to: 1.2 1.2 1.2; dir: alternate; dur: 1500; loop: true"
-          />
-          <a-ring
-            radius-inner="0.4"
-            radius-outer="0.6"
-            color="#00ffff"
-            rotation="90 0 0"
-            animation="property: rotation; to: 90 360 0; dur: 3000; loop: true"
-          />
-          <a-text
-            value="AI ПОМОЩНИК"
-            position="0 -0.8 0"
-            color="#00ffff"
-            align="center"
-            scale="0.6 0.6 1"
-          />
-        </a-entity>
-
-        {/* Частицы и эффекты */}
-        <a-entity id="particles" position="0 3 -5">
-          {Array.from({ length: 20 }, (_, i) => (
-            <a-sphere
-              key={i}
-              radius="0.02"
-              color="#00ffff"
-              position={`${(Math.random() - 0.5) * 10} ${Math.random() * 3} ${(Math.random() - 0.5) * 10}`}
-              animation={`property: position; to: ${(Math.random() - 0.5) * 10} ${Math.random() * 3} ${(Math.random() - 0.5) * 10}; dur: ${3000 + Math.random() * 2000}; loop: true; dir: alternate`}
-              animation__opacity="property: material.opacity; to: 0.3; dir: alternate; dur: 2000; loop: true"
-            />
-          ))}
-        </a-entity>
-
-        {/* Камера с управлением */}
+        {/* Camera with controls */}
         <a-camera
-          id="camera"
-          position="0 1.6 0"
-          look-controls="pointerLockEnabled: true"
-          wasd-controls="acceleration: 30"
+          position="0 2 8"
+          look-controls="enabled: true"
+          wasd-controls="enabled: true"
           cursor="rayOrigin: mouse"
         >
           <a-cursor
-            geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
-            material="color: #00ffff; shader: flat"
+            geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
+            material="color: cyan; shader: flat"
             animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-          />
+            animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
+          ></a-cursor>
         </a-camera>
 
-        {/* Звездное небо */}
-        <a-sky
-          color="#000011"
-          animation="property: rotation; to: 0 360 0; dur: 120000; loop: true"
-        />
+        {/* Central Hub */}
+        <a-entity position="0 0 0">
+          {/* Main Console */}
+          <a-box
+            position="0 1 -3"
+            width="6"
+            height="3"
+            depth="0.1"
+            material="color: #001122; transparent: true; opacity: 0.8"
+            hologram-panel
+          >
+            <a-text
+              position="0 1 0.1"
+              align="center"
+              value="METASPLOIT AI CONSOLE"
+              color="#00ffff"
+              font="msdf: #font"
+              width="8"
+            ></a-text>
+            
+            <a-text
+              position="-2 0.5 0.1"
+              align="left"
+              value={`Active Sessions: ${activeSessions}`}
+              color="#00ff00"
+              font="msdf: #font"
+              width="6"
+            ></a-text>
+            
+            <a-text
+              position="-2 0 0.1"
+              align="left"
+              value={`Vulnerabilities: ${vulnerabilities}`}
+              color="#ff6600"
+              font="msdf: #font"
+              width="6"
+            ></a-text>
+            
+            <a-text
+              position="-2 -0.5 0.1"
+              align="left"
+              value={`Network Nodes: ${networkNodes}`}
+              color="#ffff00"
+              font="msdf: #font"
+              width="6"
+            ></a-text>
+          </a-box>
+
+          {/* Terminal Panel */}
+          <a-plane
+            position="-4 2 -2"
+            width="3"
+            height="2"
+            material="color: #001100; transparent: true; opacity: 0.9"
+            hologram-panel
+            panel-click="terminal"
+          >
+            <a-text
+              position="0 0.7 0.1"
+              align="center"
+              value="TERMINAL"
+              color="#00ff00"
+              font="msdf: #font"
+              width="8"
+            ></a-text>
+            <a-text
+              position="0 0 0.1"
+              align="center"
+              value="Execute Commands"
+              color="#88ff88"
+              font="msdf: #font"
+              width="6"
+            ></a-text>
+          </a-plane>
+
+          {/* Exploits Panel */}
+          <a-plane
+            position="4 2 -2"
+            width="3"
+            height="2"
+            material="color: #220000; transparent: true; opacity: 0.9"
+            hologram-panel
+            panel-click="exploits"
+          >
+            <a-text
+              position="0 0.7 0.1"
+              align="center"
+              value="EXPLOITS"
+              color="#ff0000"
+              font="msdf: #font"
+              width="8"
+            ></a-text>
+            <a-text
+              position="0 0 0.1"
+              align="center"
+              value={`Queue: ${exploitsInQueue}`}
+              color="#ff8888"
+              font="msdf: #font"
+              width="6"
+            ></a-text>
+          </a-plane>
+
+          {/* Sessions Panel */}
+          <a-plane
+            position="-4 -1 -2"
+            width="3"
+            height="2"
+            material="color: #000022; transparent: true; opacity: 0.9"
+            hologram-panel
+            panel-click="sessions"
+          >
+            <a-text
+              position="0 0.7 0.1"
+              align="center"
+              value="SESSIONS"
+              color="#0088ff"
+              font="msdf: #font"
+              width="8"
+            ></a-text>
+            <a-text
+              position="0 0 0.1"
+              align="center"
+              value={`Active: ${activeSessions}`}
+              color="#88aaff"
+              font="msdf: #font"
+              width="6"
+            ></a-text>
+          </a-plane>
+
+          {/* Settings Panel */}
+          <a-plane
+            position="4 -1 -2"
+            width="3"
+            height="2"
+            material="color: #220022; transparent: true; opacity: 0.9"
+            hologram-panel
+            panel-click="settings"
+          >
+            <a-text
+              position="0 0.7 0.1"
+              align="center"
+              value="SETTINGS"
+              color="#ff00ff"
+              font="msdf: #font"
+              width="8"
+            ></a-text>
+            <a-text
+              position="0 0 0.1"
+              align="center"
+              value="Configuration"
+              color="#ff88ff"
+              font="msdf: #font"
+              width="6"
+            ></a-text>
+          </a-plane>
+
+          {/* AI Assistant Avatar */}
+          <a-entity position="0 3 -1">
+            <a-box
+              width="0.8"
+              height="0.8"
+              depth="0.8"
+              material="color: #00ffff; transparent: true; opacity: 0.7"
+              animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"
+            ></a-box>
+            <a-text
+              position="0 -1 0"
+              align="center"
+              value="AI ASSISTANT"
+              color="#00ffff"
+              font="msdf: #font"
+              width="6"
+            ></a-text>
+          </a-entity>
+        </a-entity>
+
+        {/* Particle Systems */}
+        <a-entity
+          position="0 0 0"
+          particle-system="preset: snow; particleCount: 100; color: #00ffff, #0088ff; size: 0.1"
+        ></a-entity>
+
+        {/* Grid Floor */}
+        <a-plane
+          position="0 -1 0"
+          rotation="-90 0 0"
+          width="20"
+          height="20"
+          material="color: #001122; transparent: true; opacity: 0.3; wireframe: true"
+        ></a-plane>
+
+        {/* Skybox */}
+        <a-sky color="#000011"></a-sky>
       </a-scene>
-
-      {/* UI оверлей для мобильных */}
-      <div className="absolute top-4 left-4 z-50 space-y-2">
-        <button
-          onClick={() => handlePanelClick('terminal')}
-          className="bg-gray-800/80 text-cyan-400 px-3 py-2 rounded-lg border border-cyan-400/50 text-sm"
-        >
-          Терминал
-        </button>
-        <button
-          onClick={() => handlePanelClick('exploits')}
-          className="bg-gray-800/80 text-orange-400 px-3 py-2 rounded-lg border border-orange-400/50 text-sm"
-        >
-          Эксплойты
-        </button>
-        <button
-          onClick={() => handlePanelClick('sessions')}
-          className="bg-gray-800/80 text-green-400 px-3 py-2 rounded-lg border border-green-400/50 text-sm"
-        >
-          Сессии
-        </button>
-      </div>
-
-      {/* Информационная панель */}
-      <div className="absolute bottom-4 right-4 z-50 bg-gray-900/90 text-cyan-400 p-3 rounded-lg border border-cyan-400/50">
-        <div className="text-xs space-y-1">
-          <div>Активных сессий: {activeSessions}</div>
-          <div>Уязвимостей: {vulnerabilities}</div>
-          <div className="text-gray-400">Используйте мышь для навигации</div>
-        </div>
-      </div>
     </div>
   )
 }

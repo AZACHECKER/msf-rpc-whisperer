@@ -1,27 +1,27 @@
-
 import { useState, useRef, useEffect } from 'react'
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Send, Terminal, Settings, Zap, Play, Shield, Target, Wifi } from "lucide-react"
+import { Send, Terminal, Settings, Zap, Play, Shield, Target, Wifi, Bot } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { MetasploitSettings } from './MetasploitSettings'
 import { CommandExecutor } from './CommandExecutor'
 import { ExploitManager } from './ExploitManager'
-import { useMetasploit } from '@/hooks/useMetasploit'
+import { AutomatedCommandSystem } from './AutomatedCommandSystem'
 import { useSystemData } from '@/hooks/useSystemData'
 
 interface Message {
   id: string
-  type: 'user' | 'ai'
+  type: 'user' | 'ai' | 'system'
   content: string
   timestamp: Date
   actions?: Array<{
     label: string
     action: string
     icon?: React.ReactNode
+    target?: string
   }>
 }
 
@@ -34,19 +34,20 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
     {
       id: '1',
       type: 'ai',
-      content: 'Добро пожаловать в Metasploit AI Assistant! 🛡️\n\nЯ помогу вам с настройкой и использованием Metasploit Framework. Что бы вы хотели сделать?',
+      content: 'Добро пожаловать в Metasploit AI Assistant! 🛡️\n\nЯ помогу вам с автоматизированными атаками. Просто скажите "выполни проверку и эксплойты на [цель]" для запуска автоматического процесса.',
       timestamp: new Date(),
       actions: [
         { label: 'Настроить подключение', action: 'configure', icon: <Settings className="h-4 w-4" /> },
-        { label: 'Выполнить команду', action: 'command', icon: <Terminal className="h-4 w-4" /> },
-        { label: 'Запустить эксплойт', action: 'exploit', icon: <Zap className="h-4 w-4" /> },
-        { label: 'Показать сессии', action: 'sessions', icon: <Play className="h-4 w-4" /> }
+        { label: 'Автоматическая атака', action: 'auto-attack', icon: <Bot className="h-4 w-4" /> },
+        { label: 'Ручные команды', action: 'command', icon: <Terminal className="h-4 w-4" /> },
+        { label: 'Менеджер эксплойтов', action: 'exploit', icon: <Zap className="h-4 w-4" /> }
       ]
     }
   ])
   const [inputMessage, setInputMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [activeModal, setActiveModal] = useState<string | null>(null)
+  const [automatedSystem, setAutomatedSystem] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
   const { sessionList, activeSessions, vulnerabilities } = useSystemData()
@@ -58,6 +59,39 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  const handleAutomatedAttack = (target: string) => {
+    const systemMessage: Message = {
+      id: Date.now().toString(),
+      type: 'system',
+      content: `🤖 Запуск автоматизированной атаки на цель: ${target}\n\nЭтапы:\n1. Сканирование портов\n2. Анализ уязвимостей\n3. Выбор эксплойтов\n4. Автоматическое выполнение\n5. Пост-эксплуатация`,
+      timestamp: new Date()
+    }
+
+    setMessages(prev => [...prev, systemMessage])
+
+    if (automatedSystem) {
+      automatedSystem.executeAutomatedFlow(target)
+    }
+  }
+
+  const parseAutomatedCommand = (message: string): string | null => {
+    const patterns = [
+      /выполни проверку и эксплойты на\s+([^\s]+)/i,
+      /автоматическая атака на\s+([^\s]+)/i,
+      /атакуй\s+([^\s]+)/i,
+      /проверь\s+([^\s]+)/i
+    ]
+
+    for (const pattern of patterns) {
+      const match = message.match(pattern)
+      if (match) {
+        return match[1]
+      }
+    }
+
+    return null
+  }
 
   const handleSendMessage = async (message: string) => {
     if (!message.trim()) return
@@ -73,6 +107,14 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
     setInputMessage('')
     setIsTyping(true)
 
+    // Check for automated attack command
+    const target = parseAutomatedCommand(message)
+    if (target) {
+      setIsTyping(false)
+      handleAutomatedAttack(target)
+      return
+    }
+
     // Simulate AI response
     setTimeout(() => {
       const aiResponse = generateAIResponse(message)
@@ -83,6 +125,18 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
 
   const generateAIResponse = (userInput: string): Message => {
     const input = userInput.toLowerCase()
+    
+    if (input.includes('автомат') || input.includes('атак')) {
+      return {
+        id: Date.now().toString(),
+        type: 'ai',
+        content: 'Для автоматизированной атаки укажите цель в формате:\n\n"выполни проверку и эксплойты на [IP или домен]"\n\nПример: "выполни проверку и эксплойты на 192.168.1.1"\n\nСистема автоматически:\n• Просканирует порты\n• Найдет уязвимости\n• Выберет подходящие эксплойты\n• Выполнит атаку\n• Проведет пост-эксплуатацию',
+        timestamp: new Date(),
+        actions: [
+          { label: 'Пример атаки', action: 'auto-attack', icon: <Bot className="h-4 w-4" />, target: 'testphp.vulnweb.com' }
+        ]
+      }
+    }
     
     if (input.includes('настрой') || input.includes('подключ') || input.includes('конфиг')) {
       return {
@@ -146,7 +200,11 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
     }
   }
 
-  const handleAction = (action: string) => {
+  const handleAction = (action: string, target?: string) => {
+    if (action === 'auto-attack' && target) {
+      handleAutomatedAttack(target)
+      return
+    }
     setActiveModal(action)
   }
 
@@ -158,21 +216,21 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Header */}
-      <div className="bg-gray-800/80 backdrop-blur-sm border-b border-gray-700 p-4">
+    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-900/95 via-gray-800/95 to-gray-900/95 backdrop-blur-sm">
+      {/* Header with improved transparency */}
+      <div className="bg-gray-800/60 backdrop-blur-md border-b border-gray-700/50 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-600 rounded-lg">
+            <div className="p-2 bg-purple-600/80 rounded-lg backdrop-blur-sm">
               <Shield className="h-6 w-6 text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">Metasploit AI</h1>
-              <p className="text-sm text-gray-400">Ваш помощник по безопасности</p>
+              <p className="text-sm text-gray-300">Автоматизированный помощник</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-xs bg-green-600/20 text-green-400 border-green-600/30">
               <Wifi className="h-3 w-3 mr-1" />
               Онлайн
             </Badge>
@@ -180,7 +238,7 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Messages with improved styling */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
@@ -188,10 +246,12 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
             className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[85%] sm:max-w-[70%] rounded-2xl p-4 ${
+              className={`max-w-[85%] sm:max-w-[70%] rounded-2xl p-4 backdrop-blur-sm border ${
                 message.type === 'user'
-                  ? 'bg-blue-600 text-white ml-4'
-                  : 'bg-gray-700/50 text-gray-100 mr-4'
+                  ? 'bg-blue-600/80 text-white border-blue-500/30 ml-4'
+                  : message.type === 'system'
+                  ? 'bg-orange-600/20 text-orange-200 border-orange-500/30 mr-4'
+                  : 'bg-gray-700/40 text-gray-100 border-gray-600/30 mr-4'
               }`}
             >
               <div className="whitespace-pre-wrap text-sm sm:text-base">
@@ -206,14 +266,14 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-gray-600 hover:bg-gray-600 text-xs sm:text-sm"
-                          onClick={() => handleAction(action.action)}
+                          className="border-gray-500/30 bg-gray-800/40 hover:bg-gray-600/40 text-xs sm:text-sm backdrop-blur-sm transition-all duration-200 hover:scale-105"
+                          onClick={() => handleAction(action.action, action.target)}
                         >
                           {action.icon}
                           <span className="ml-1">{action.label}</span>
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="bg-gray-800 border-gray-700 text-white max-w-4xl max-h-[90vh] overflow-y-auto">
+                      <DialogContent className="bg-gray-800/95 border-gray-700/50 text-white max-w-4xl max-h-[90vh] overflow-y-auto backdrop-blur-md">
                         <DialogHeader>
                           <DialogTitle className="flex items-center gap-2">
                             {action.icon}
@@ -223,7 +283,7 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
                             {action.action === 'configure' && 'Настройте подключение к Metasploit Framework'}
                             {action.action === 'command' && 'Выполняйте команды Metasploit в интерактивном режиме'}
                             {action.action === 'exploit' && 'Настройте и запустите эксплойты'}
-                            {action.action === 'sessions' && 'Управляйте активными сессиями'}
+                            {action.action === 'auto-attack' && 'Автоматизированная система атак'}
                           </DialogDescription>
                         </DialogHeader>
                         
@@ -233,43 +293,14 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
                           )}
                           {action.action === 'command' && <CommandExecutor />}
                           {action.action === 'exploit' && <ExploitManager />}
-                          {action.action === 'sessions' && (
-                            <Card className="bg-gray-800/50 border-gray-700">
-                              <CardContent className="p-6">
-                                <div className="text-center text-gray-400">
-                                  Активных сессий: {activeSessions}
-                                  {activeSessions === 0 && (
-                                    <p className="mt-2 text-sm">
-                                      Пока нет активных сессий. Запустите эксплойт для создания сессии.
-                                    </p>
-                                  )}
-                                  {sessionList.length > 0 && (
-                                    <div className="mt-4 space-y-2">
-                                      {sessionList.map((session: any) => (
-                                        <div 
-                                          key={session.id}
-                                          className="p-3 bg-gray-900/50 rounded-lg border border-gray-600 text-left"
-                                        >
-                                          <div className="flex justify-between items-center">
-                                            <div>
-                                              <span className="text-white font-medium">
-                                                Сессия {session.session_id}
-                                              </span>
-                                              <span className="text-gray-400 ml-2">
-                                                ({session.session_type || 'meterpreter'})
-                                              </span>
-                                            </div>
-                                            <div className="text-sm text-gray-400">
-                                              {session.target_host || 'localhost'}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
+                          {action.action === 'auto-attack' && (
+                            <AutomatedCommandSystem
+                              isActive={true}
+                              onCommandStart={() => {}}
+                              onCommandComplete={(results) => {
+                                console.log('Automation completed:', results)
+                              }}
+                            />
                           )}
                         </div>
                       </DialogContent>
@@ -287,7 +318,7 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
         
         {isTyping && (
           <div className="flex justify-start">
-            <div className="bg-gray-700/50 text-gray-100 rounded-2xl p-4 mr-4">
+            <div className="bg-gray-700/40 text-gray-100 rounded-2xl p-4 mr-4 backdrop-blur-sm border border-gray-600/30">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">
                   <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
@@ -303,26 +334,53 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="bg-gray-800/80 backdrop-blur-sm border-t border-gray-700 p-4">
+      {/* Input with improved transparency */}
+      <div className="bg-gray-800/60 backdrop-blur-md border-t border-gray-700/50 p-4">
         <div className="flex gap-2">
           <Input
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Напишите сообщение..."
-            className="bg-gray-700/50 border-gray-600 text-white placeholder-gray-400 flex-1"
+            placeholder='Попробуйте: "выполни проверку и эксплойты на rabby.at"'
+            className="bg-gray-700/40 border-gray-600/50 text-white placeholder-gray-400 flex-1 backdrop-blur-sm focus:bg-gray-700/60 transition-all duration-200"
             disabled={isTyping}
           />
           <Button
             onClick={() => handleSendMessage(inputMessage)}
             disabled={!inputMessage.trim() || isTyping}
-            className="bg-blue-600 hover:bg-blue-700 p-3"
+            className="bg-blue-600/80 hover:bg-blue-700/80 p-3 backdrop-blur-sm transition-all duration-200 hover:scale-105"
           >
             <Send className="h-4 w-4" />
           </Button>
         </div>
+        
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-gray-600/30 bg-gray-800/20 hover:bg-gray-600/40 text-xs backdrop-blur-sm"
+            onClick={() => setInputMessage('выполни проверку и эксплойты на testphp.vulnweb.com')}
+          >
+            <Target className="h-3 w-3 mr-1" />
+            Тестовая цель
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-gray-600/30 bg-gray-800/20 hover:bg-gray-600/40 text-xs backdrop-blur-sm"
+            onClick={() => setInputMessage('покажи активные сессии')}
+          >
+            <Play className="h-3 w-3 mr-1" />
+            Сессии
+          </Button>
+        </div>
       </div>
+
+      <AutomatedCommandSystem
+        isActive={false}
+        onCommandStart={() => {}}
+        onCommandComplete={() => {}}
+      />
     </div>
   )
 }
