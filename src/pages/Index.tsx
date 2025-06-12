@@ -1,5 +1,4 @@
 
-import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -15,13 +14,27 @@ import {
   Search,
   Zap,
   Eye,
-  Database
+  Database,
+  AlertTriangle,
+  Clock,
+  CheckCircle
 } from "lucide-react";
+import { useSystemData } from '@/hooks/useSystemData';
+import { MetasploitConsole } from '@/components/MetasploitConsole';
 
 const Index = () => {
-  const [activeScans, setActiveScans] = useState(3);
-  const [vulnerabilities, setVulnerabilities] = useState(15);
-  const [activeSessions, setActiveSessions] = useState(2);
+  const {
+    activeScans,
+    isLoadingScans,
+    vulnerabilities,
+    vulnerabilityList,
+    isLoadingVulnerabilities,
+    activeSessions,
+    isLoadingSessions,
+    exploitsInQueue,
+    networkNodes,
+    isLoadingNodes
+  } = useSystemData();
 
   const systemModules = [
     {
@@ -29,65 +42,88 @@ const Index = () => {
       title: "Сканирование",
       description: "Автоматическое сканирование уязвимостей и анализ безопасности",
       count: activeScans,
-      color: "bg-blue-500"
+      color: "bg-blue-500",
+      loading: isLoadingScans
     },
     {
       icon: <Shield className="h-8 w-8" />,
       title: "Уязвимости",
       description: "Обнаруженные уязвимости и рекомендации по устранению",
       count: vulnerabilities,
-      color: "bg-red-500"
+      color: "bg-red-500",
+      loading: isLoadingVulnerabilities
     },
     {
       icon: <Zap className="h-8 w-8" />,
       title: "Эксплойты",
       description: "Управление и запуск эксплойтов",
-      count: 47,
+      count: exploitsInQueue,
       color: "bg-orange-500"
     },
     {
       icon: <Network className="h-8 w-8" />,
       title: "Сетевая топология",
       description: "Карта сети и обнаруженные узлы",
-      count: 12,
-      color: "bg-green-500"
+      count: networkNodes,
+      color: "bg-green-500",
+      loading: isLoadingNodes
     },
     {
       icon: <Terminal className="h-8 w-8" />,
       title: "Metasploit",
       description: "Активные сессии и консоль управления",
       count: activeSessions,
-      color: "bg-purple-500"
+      color: "bg-purple-500",
+      loading: isLoadingSessions
     },
     {
       icon: <Brain className="h-8 w-8" />,
       title: "AI Анализ",
       description: "Искусственный интеллект для анализа безопасности",
-      count: 8,
+      count: 0,
       color: "bg-cyan-500"
     },
     {
       icon: <MessageSquare className="h-8 w-8" />,
       title: "Telegram",
       description: "Мониторинг и управление через Telegram",
-      count: 5,
+      count: 0,
       color: "bg-blue-600"
     },
     {
       icon: <Radio className="h-8 w-8" />,
       title: "Радио",
       description: "Радиостанция и чат",
-      count: 1,
+      count: 0,
       color: "bg-pink-500"
     }
   ];
 
-  const recentActivity = [
-    { type: "scan", message: "Завершено сканирование 192.168.1.0/24", time: "2 мин назад" },
-    { type: "vuln", message: "Обнаружена критическая уязвимость CVE-2023-1234", time: "5 мин назад" },
-    { type: "exploit", message: "Успешно выполнен эксплойт ms17_010_eternalblue", time: "10 мин назад" },
-    { type: "session", message: "Новая meterpreter сессия от 192.168.1.15", time: "15 мин назад" }
-  ];
+  const getRecentActivity = () => {
+    const activities = [];
+    
+    // Добавляем последние уязвимости
+    vulnerabilityList.slice(0, 2).forEach(vuln => {
+      activities.push({
+        type: "vuln",
+        message: `Обнаружена уязвимость: ${vuln.title}`,
+        time: new Date(vuln.discovered_at).toLocaleTimeString('ru-RU'),
+        severity: vuln.severity
+      });
+    });
+
+    if (activities.length === 0) {
+      activities.push({
+        type: "info",
+        message: "Система готова к работе",
+        time: new Date().toLocaleTimeString('ru-RU')
+      });
+    }
+
+    return activities;
+  };
+
+  const recentActivity = getRecentActivity();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
@@ -115,9 +151,9 @@ const Index = () => {
               <Zap className="h-4 w-4 mr-2" />
               Эксплойты
             </TabsTrigger>
-            <TabsTrigger value="monitoring" className="data-[state=active]:bg-blue-600">
-              <Eye className="h-4 w-4 mr-2" />
-              Мониторинг
+            <TabsTrigger value="metasploit" className="data-[state=active]:bg-blue-600">
+              <Terminal className="h-4 w-4 mr-2" />
+              Metasploit
             </TabsTrigger>
           </TabsList>
 
@@ -131,7 +167,7 @@ const Index = () => {
                         {module.icon}
                       </div>
                       <Badge variant="secondary" className="bg-gray-700 text-gray-300">
-                        {module.count}
+                        {module.loading ? '...' : module.count}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -167,6 +203,7 @@ const Index = () => {
                           ${activity.type === 'vuln' ? 'border-red-500 text-red-400' : ''}
                           ${activity.type === 'exploit' ? 'border-orange-500 text-orange-400' : ''}
                           ${activity.type === 'session' ? 'border-green-500 text-green-400' : ''}
+                          ${activity.type === 'info' ? 'border-gray-500 text-gray-400' : ''}
                         `}
                       >
                         {activity.type}
@@ -186,20 +223,28 @@ const Index = () => {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="text-center p-3 bg-gray-900/50 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-400">{activeScans}</div>
+                      <div className="text-2xl font-bold text-blue-400">
+                        {isLoadingScans ? '...' : activeScans}
+                      </div>
                       <div className="text-xs text-gray-400">Активных сканов</div>
                     </div>
                     <div className="text-center p-3 bg-gray-900/50 rounded-lg">
-                      <div className="text-2xl font-bold text-red-400">{vulnerabilities}</div>
+                      <div className="text-2xl font-bold text-red-400">
+                        {isLoadingVulnerabilities ? '...' : vulnerabilities}
+                      </div>
                       <div className="text-xs text-gray-400">Уязвимостей</div>
                     </div>
                     <div className="text-center p-3 bg-gray-900/50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-400">{activeSessions}</div>
+                      <div className="text-2xl font-bold text-green-400">
+                        {isLoadingSessions ? '...' : activeSessions}
+                      </div>
                       <div className="text-xs text-gray-400">Активных сессий</div>
                     </div>
                     <div className="text-center p-3 bg-gray-900/50 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-400">47</div>
-                      <div className="text-xs text-gray-400">Доступных эксплойтов</div>
+                      <div className="text-2xl font-bold text-purple-400">
+                        {isLoadingNodes ? '...' : networkNodes}
+                      </div>
+                      <div className="text-xs text-gray-400">Сетевых узлов</div>
                     </div>
                   </div>
                 </CardContent>
@@ -249,25 +294,8 @@ const Index = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="monitoring" className="space-y-6">
-            <Card className="bg-gray-800/50 border-gray-700">
-              <CardHeader>
-                <CardTitle className="text-white">Системный мониторинг</CardTitle>
-                <CardDescription className="text-gray-400">
-                  Мониторинг сетевой активности и системных метрик
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-4">
-                  <Button className="bg-green-600 hover:bg-green-700">
-                    Сетевая топология
-                  </Button>
-                  <Button variant="outline" className="border-gray-600 text-gray-300">
-                    Системные метрики
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="metasploit" className="space-y-6">
+            <MetasploitConsole />
           </TabsContent>
         </Tabs>
       </div>
