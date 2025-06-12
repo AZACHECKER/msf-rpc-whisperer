@@ -1,93 +1,94 @@
 
 import { useSystemData } from '@/hooks/useSystemData'
+import { VRHolographicPanel } from './VRHolographicPanel'
+import { VRCentralConsole } from './VRCentralConsole'
 
 interface VRPanelHubProps {
   onPanelClick: (panelType: string) => void
+  activePanel?: string | null
 }
 
-export const VRPanelHub = ({ onPanelClick }: VRPanelHubProps) => {
-  const { activeSessions, vulnerabilities, exploitsInQueue, networkNodes } = useSystemData()
+export const VRPanelHub = ({ onPanelClick, activePanel }: VRPanelHubProps) => {
+  const { activeSessions, exploitsInQueue } = useSystemData()
 
   return (
     <div className="relative" style={{ transformStyle: 'preserve-3d' }}>
-      {/* Main Console */}
-      <div 
-        className="absolute bg-gradient-to-br from-cyan-900/80 to-blue-900/80 backdrop-blur-sm border border-cyan-400/50 rounded-lg p-6 cursor-pointer hover:scale-105 transition-all duration-300"
-        style={{
-          width: '400px',
-          height: '250px',
-          transform: 'translateZ(0px)',
-          transformStyle: 'preserve-3d'
-        }}
-      >
-        <h2 className="text-cyan-400 text-xl font-bold mb-4 text-center">METASPLOIT AI CONSOLE</h2>
-        <div className="space-y-2 text-sm">
-          <div className="text-green-400">Active Sessions: {activeSessions}</div>
-          <div className="text-orange-400">Vulnerabilities: {vulnerabilities}</div>
-          <div className="text-yellow-400">Network Nodes: {networkNodes}</div>
-          <div className="text-red-400">Exploits in Queue: {exploitsInQueue}</div>
-        </div>
-      </div>
+      {/* Central Console */}
+      <VRCentralConsole />
 
       {/* Terminal Panel */}
-      <div 
-        className="absolute bg-gradient-to-br from-green-900/80 to-emerald-900/80 backdrop-blur-sm border border-green-400/50 rounded-lg p-4 cursor-pointer hover:scale-105 transition-all duration-300"
-        style={{
-          width: '200px',
-          height: '150px',
-          transform: 'translateX(-300px) translateY(-100px) rotateY(-15deg) translateZ(50px)',
-        }}
+      <VRHolographicPanel
+        title="TERMINAL"
+        color="green"
+        position="translateX(-300px) translateY(-100px) rotateY(-15deg) translateZ(50px)"
         onClick={() => onPanelClick('terminal')}
+        isActive={activePanel === 'terminal'}
       >
-        <h3 className="text-green-400 font-bold mb-2">TERMINAL</h3>
         <p className="text-green-300 text-sm">Execute Commands</p>
-        <div className="mt-2 text-green-300/70 text-xs">Click to open</div>
-      </div>
+        <div className="mt-2 text-green-300/70 text-xs">
+          Neural Command Interface
+        </div>
+        <div className="absolute bottom-2 right-2 text-green-400/50 text-xs">
+          msfconsole&gt;
+        </div>
+      </VRHolographicPanel>
 
       {/* Exploits Panel */}
-      <div 
-        className="absolute bg-gradient-to-br from-red-900/80 to-orange-900/80 backdrop-blur-sm border border-red-400/50 rounded-lg p-4 cursor-pointer hover:scale-105 transition-all duration-300"
-        style={{
-          width: '200px',
-          height: '150px',
-          transform: 'translateX(300px) translateY(-100px) rotateY(15deg) translateZ(50px)',
-        }}
+      <VRHolographicPanel
+        title="EXPLOITS"
+        color="red"
+        position="translateX(300px) translateY(-100px) rotateY(15deg) translateZ(50px)"
         onClick={() => onPanelClick('exploits')}
+        isActive={activePanel === 'exploits'}
       >
-        <h3 className="text-orange-400 font-bold mb-2">EXPLOITS</h3>
         <p className="text-orange-300 text-sm">Queue: {exploitsInQueue}</p>
-        <div className="mt-2 text-orange-300/70 text-xs">Click to open</div>
-      </div>
+        <div className="mt-2 text-orange-300/70 text-xs">
+          Payload Arsenal
+        </div>
+        <div className="absolute bottom-2 right-2">
+          <div className="w-6 h-6 border border-red-400/50 rounded flex items-center justify-center">
+            <div className="w-2 h-2 bg-red-400 rounded animate-pulse" />
+          </div>
+        </div>
+      </VRHolographicPanel>
 
       {/* Sessions Panel */}
-      <div 
-        className="absolute bg-gradient-to-br from-blue-900/80 to-indigo-900/80 backdrop-blur-sm border border-blue-400/50 rounded-lg p-4 cursor-pointer hover:scale-105 transition-all duration-300"
-        style={{
-          width: '200px',
-          height: '150px',
-          transform: 'translateX(-300px) translateY(100px) rotateY(-15deg) translateZ(50px)',
-        }}
+      <VRHolographicPanel
+        title="SESSIONS"
+        color="blue"
+        position="translateX(-300px) translateY(100px) rotateY(-15deg) translateZ(50px)"
         onClick={() => onPanelClick('sessions')}
+        isActive={activePanel === 'sessions'}
       >
-        <h3 className="text-blue-400 font-bold mb-2">SESSIONS</h3>
         <p className="text-blue-300 text-sm">Active: {activeSessions}</p>
-        <div className="mt-2 text-blue-300/70 text-xs">Click to open</div>
-      </div>
+        <div className="mt-2 text-blue-300/70 text-xs">
+          Remote Connections
+        </div>
+        <div className="absolute bottom-2 right-2 flex gap-1">
+          {Array.from({ length: Math.min(activeSessions, 3) }).map((_, i) => (
+            <div key={i} className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
+          ))}
+        </div>
+      </VRHolographicPanel>
 
       {/* Settings Panel */}
-      <div 
-        className="absolute bg-gradient-to-br from-purple-900/80 to-fuchsia-900/80 backdrop-blur-sm border border-purple-400/50 rounded-lg p-4 cursor-pointer hover:scale-105 transition-all duration-300"
-        style={{
-          width: '200px',
-          height: '150px',
-          transform: 'translateX(300px) translateY(100px) rotateY(15deg) translateZ(50px)',
-        }}
+      <VRHolographicPanel
+        title="SETTINGS"
+        color="purple"
+        position="translateX(300px) translateY(100px) rotateY(15deg) translateZ(50px)"
         onClick={() => onPanelClick('settings')}
+        isActive={activePanel === 'settings'}
       >
-        <h3 className="text-purple-400 font-bold mb-2">SETTINGS</h3>
         <p className="text-purple-300 text-sm">Configuration</p>
-        <div className="mt-2 text-purple-300/70 text-xs">Click to open</div>
-      </div>
+        <div className="mt-2 text-purple-300/70 text-xs">
+          System Parameters
+        </div>
+        <div className="absolute bottom-2 right-2">
+          <div className="w-4 h-4 border border-purple-400/50 rounded-full animate-spin">
+            <div className="w-1 h-1 bg-purple-400 rounded-full" />
+          </div>
+        </div>
+      </VRHolographicPanel>
     </div>
   )
 }
