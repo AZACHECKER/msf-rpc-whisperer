@@ -47,7 +47,6 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
   const [inputMessage, setInputMessage] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [activeModal, setActiveModal] = useState<string | null>(null)
-  const [automatedSystem, setAutomatedSystem] = useState<any>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
   const { sessionList, activeSessions, vulnerabilities } = useSystemData()
@@ -65,14 +64,16 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
       id: Date.now().toString(),
       type: 'system',
       content: `🤖 Запуск автоматизированной атаки на цель: ${target}\n\nЭтапы:\n1. Сканирование портов\n2. Анализ уязвимостей\n3. Выбор эксплойтов\n4. Автоматическое выполнение\n5. Пост-эксплуатация`,
-      timestamp: new Date()
+      timestamp: new Date(),
+      actions: [
+        { label: 'Открыть панель атак', action: 'auto-attack', icon: <Bot className="h-4 w-4" /> }
+      ]
     }
 
     setMessages(prev => [...prev, systemMessage])
-
-    if (automatedSystem) {
-      automatedSystem.executeAutomatedFlow(target)
-    }
+    
+    // Open the automated attack dialog
+    setActiveModal('auto-attack')
   }
 
   const parseAutomatedCommand = (message: string): string | null => {
@@ -375,12 +376,6 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
           </Button>
         </div>
       </div>
-
-      <AutomatedCommandSystem
-        isActive={false}
-        onCommandStart={() => {}}
-        onCommandComplete={() => {}}
-      />
     </div>
   )
 }

