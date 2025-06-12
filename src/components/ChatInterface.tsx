@@ -49,7 +49,7 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
   const [activeModal, setActiveModal] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { toast } = useToast()
-  const { sessions, activeSessions, vulnerabilities } = useSystemData()
+  const { sessionList, activeSessions, vulnerabilities } = useSystemData()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -242,6 +242,30 @@ export const ChatInterface = ({ onConfigSaved }: ChatInterfaceProps) => {
                                     <p className="mt-2 text-sm">
                                       Пока нет активных сессий. Запустите эксплойт для создания сессии.
                                     </p>
+                                  )}
+                                  {sessionList.length > 0 && (
+                                    <div className="mt-4 space-y-2">
+                                      {sessionList.map((session: any) => (
+                                        <div 
+                                          key={session.id}
+                                          className="p-3 bg-gray-900/50 rounded-lg border border-gray-600 text-left"
+                                        >
+                                          <div className="flex justify-between items-center">
+                                            <div>
+                                              <span className="text-white font-medium">
+                                                Сессия {session.session_id}
+                                              </span>
+                                              <span className="text-gray-400 ml-2">
+                                                ({session.session_type || 'meterpreter'})
+                                              </span>
+                                            </div>
+                                            <div className="text-sm text-gray-400">
+                                              {session.target_host || 'localhost'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
                                   )}
                                 </div>
                               </CardContent>
