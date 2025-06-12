@@ -22,7 +22,7 @@ const Index = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-black">
+      <div className="min-h-screen bg-black text-white">
         <MainInterface onConfigSaved={handleConfigSaved} />
         <Toaster />
       </div>
