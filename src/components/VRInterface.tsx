@@ -1,559 +1,205 @@
 
-import { useEffect, useRef, useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useSystemData } from '@/hooks/useSystemData'
+import { VRModal } from './VRModal'
 
 interface VRInterfaceProps {
   onConfigSaved?: (config: any) => void
 }
 
 export const VRInterface = ({ onConfigSaved }: VRInterfaceProps) => {
-  const sceneRef = useRef<HTMLElement>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [activePanel, setActivePanel] = useState<string | null>(null)
-  const [inputValue, setInputValue] = useState('')
-  const [isInputActive, setIsInputActive] = useState(false)
+  const [rotation, setRotation] = useState({ x: 0, y: 0 })
+  const [position, setPosition] = useState({ x: 0, y: 0, z: 0 })
+  const containerRef = useRef<HTMLDivElement>(null)
   const { activeSessions, vulnerabilities, exploitsInQueue, networkNodes } = useSystemData()
 
+  // Mouse controls for 3D navigation
   useEffect(() => {
-    const loadAFrame = async () => {
-      try {
-        await import('aframe')
-        setIsLoading(false)
-        
-        // Register custom components after A-Frame loads
-        setTimeout(() => {
-          if (typeof window !== 'undefined' && (window as any).AFRAME) {
-            const AFRAME = (window as any).AFRAME
-            
-            // Custom hologram panel component
-            AFRAME.registerComponent('hologram-panel', {
-              init: function() {
-                this.el.addEventListener('mouseenter', () => {
-                  this.el.setAttribute('animation', 'property: scale; to: 1.1 1.1 1.1; dur: 200')
-                })
-                this.el.addEventListener('mouseleave', () => {
-                  this.el.setAttribute('animation', 'property: scale; to: 1 1 1; dur: 200')
-                })
-              }
-            })
-
-            // Click handler component
-            AFRAME.registerComponent('panel-click', {
-              schema: { type: 'string' },
-              init: function() {
-                this.el.addEventListener('click', () => {
-                  const event = new CustomEvent('panel-selected', { 
-                    detail: { panel: this.data } 
-                  })
-                  window.dispatchEvent(event)
-                })
-              }
-            })
-
-            // Input field component
-            AFRAME.registerComponent('input-field', {
-              schema: { 
-                placeholder: { type: 'string', default: 'Enter text...' },
-                value: { type: 'string', default: '' }
-              },
-              init: function() {
-                this.el.addEventListener('click', () => {
-                  const event = new CustomEvent('input-focus', { 
-                    detail: { id: this.el.id } 
-                  })
-                  window.dispatchEvent(event)
-                })
-              }
-            })
-          }
-        }, 100)
-      } catch (error) {
-        console.error('Error loading A-Frame:', error)
+    const handleMouseMove = (e: MouseEvent) => {
+      if (e.buttons === 1) { // Left mouse button held
+        setRotation(prev => ({
+          x: prev.x + e.movementY * 0.5,
+          y: prev.y + e.movementX * 0.5
+        }))
       }
     }
 
-    loadAFrame()
-
-    // Event listeners for panel selection and input focus
-    const handlePanelSelect = (event: any) => {
-      setActivePanel(event.detail.panel)
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      setPosition(prev => ({
+        ...prev,
+        z: Math.max(-2000, Math.min(2000, prev.z + e.deltaY))
+      }))
     }
 
-    const handleInputFocus = (event: any) => {
-      setIsInputActive(true)
-      const input = prompt('Enter value:')
-      if (input !== null) {
-        setInputValue(input)
-      }
-      setIsInputActive(false)
+    const container = containerRef.current
+    if (container) {
+      container.addEventListener('mousemove', handleMouseMove)
+      container.addEventListener('wheel', handleWheel)
     }
-
-    window.addEventListener('panel-selected', handlePanelSelect)
-    window.addEventListener('input-focus', handleInputFocus)
 
     return () => {
-      window.removeEventListener('panel-selected', handlePanelSelect)
-      window.removeEventListener('input-focus', handleInputFocus)
+      if (container) {
+        container.removeEventListener('mousemove', handleMouseMove)
+        container.removeEventListener('wheel', handleWheel)
+      }
     }
   }, [])
 
-  const closePanel = () => {
+  const handlePanelClick = (panelType: string) => {
+    setActivePanel(panelType)
+  }
+
+  const closeModal = () => {
     setActivePanel(null)
   }
 
-  if (isLoading) {
-    return (
-      <div className="w-full h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <div className="text-cyan-400 text-xl animate-pulse">Загрузка 3D интерфейса...</div>
-      </div>
-    )
-  }
-
   return (
-    <div className="w-full h-screen vr-container">
-      <a-scene 
-        ref={sceneRef}
-        embedded
-        style={{ height: '100vh', width: '100vw' }}
-        background="color: #000011"
-        fog="type: exponential; color: #000033; density: 0.1"
-        vr-mode-ui="enabled: true"
+    <div 
+      ref={containerRef}
+      className="w-full h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-black overflow-hidden cursor-grab active:cursor-grabbing"
+      style={{
+        perspective: '1000px',
+        perspectiveOrigin: '50% 50%'
+      }}
+    >
+      {/* 3D Scene Container */}
+      <div 
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg) translateZ(${position.z}px)`,
+          transformStyle: 'preserve-3d',
+          transition: 'transform 0.1s ease-out'
+        }}
       >
-        {/* Assets */}
-        <a-assets>
-          <a-asset-item id="font" src="https://cdn.aframe.io/fonts/Roboto-msdf.json"></a-asset-item>
-        </a-assets>
-
-        {/* Lighting */}
-        <a-light type="ambient" color="#004" intensity="0.5"></a-light>
-        <a-light type="point" position="0 10 0" color="#00ffff" intensity="2"></a-light>
-        <a-light type="point" position="-10 5 -10" color="#ff00ff" intensity="1"></a-light>
-
-        {/* Camera with controls */}
-        <a-camera
-          position="0 2 8"
-          look-controls="enabled: true"
-          wasd-controls="enabled: true"
-          cursor="rayOrigin: mouse"
-        >
-          <a-cursor
-            geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
-            material="color: cyan; shader: flat"
-            animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
-            animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
-          />
-        </a-camera>
-
         {/* Central Hub */}
-        <a-entity position="0 0 0">
+        <div className="relative" style={{ transformStyle: 'preserve-3d' }}>
+          
           {/* Main Console */}
-          <a-box
-            position="0 1 -3"
-            width="6"
-            height="3"
-            depth="0.1"
-            material="color: #001122; transparent: true; opacity: 0.8"
-            hologram-panel
+          <div 
+            className="absolute bg-gradient-to-br from-cyan-900/80 to-blue-900/80 backdrop-blur-sm border border-cyan-400/50 rounded-lg p-6 cursor-pointer hover:scale-105 transition-all duration-300"
+            style={{
+              width: '400px',
+              height: '250px',
+              transform: 'translateZ(0px)',
+              transformStyle: 'preserve-3d'
+            }}
           >
-            <a-text
-              position="0 1 0.1"
-              align="center"
-              value="METASPLOIT AI CONSOLE"
-              color="#00ffff"
-              font="msdf: #font"
-              width="8"
-            ></a-text>
-            
-            <a-text
-              position="-2 0.5 0.1"
-              align="left"
-              value={`Active Sessions: ${activeSessions}`}
-              color="#00ff00"
-              font="msdf: #font"
-              width="6"
-            ></a-text>
-            
-            <a-text
-              position="-2 0 0.1"
-              align="left"
-              value={`Vulnerabilities: ${vulnerabilities}`}
-              color="#ff6600"
-              font="msdf: #font"
-              width="6"
-            ></a-text>
-            
-            <a-text
-              position="-2 -0.5 0.1"
-              align="left"
-              value={`Network Nodes: ${networkNodes}`}
-              color="#ffff00"
-              font="msdf: #font"
-              width="6"
-            ></a-text>
-          </a-box>
+            <h2 className="text-cyan-400 text-xl font-bold mb-4 text-center">METASPLOIT AI CONSOLE</h2>
+            <div className="space-y-2 text-sm">
+              <div className="text-green-400">Active Sessions: {activeSessions}</div>
+              <div className="text-orange-400">Vulnerabilities: {vulnerabilities}</div>
+              <div className="text-yellow-400">Network Nodes: {networkNodes}</div>
+              <div className="text-red-400">Exploits in Queue: {exploitsInQueue}</div>
+            </div>
+          </div>
 
           {/* Terminal Panel */}
-          <a-plane
-            position="-4 2 -2"
-            width="3"
-            height="2"
-            material="color: #001100; transparent: true; opacity: 0.9"
-            hologram-panel
-            panel-click="terminal"
+          <div 
+            className="absolute bg-gradient-to-br from-green-900/80 to-emerald-900/80 backdrop-blur-sm border border-green-400/50 rounded-lg p-4 cursor-pointer hover:scale-105 transition-all duration-300"
+            style={{
+              width: '200px',
+              height: '150px',
+              transform: 'translateX(-300px) translateY(-100px) rotateY(-15deg) translateZ(50px)',
+            }}
+            onClick={() => handlePanelClick('terminal')}
           >
-            <a-text
-              position="0 0.7 0.1"
-              align="center"
-              value="TERMINAL"
-              color="#00ff00"
-              font="msdf: #font"
-              width="8"
-            ></a-text>
-            <a-text
-              position="0 0 0.1"
-              align="center"
-              value="Execute Commands"
-              color="#88ff88"
-              font="msdf: #font"
-              width="6"
-            ></a-text>
-          </a-plane>
+            <h3 className="text-green-400 font-bold mb-2">TERMINAL</h3>
+            <p className="text-green-300 text-sm">Execute Commands</p>
+            <div className="mt-2 text-green-300/70 text-xs">Click to open</div>
+          </div>
 
           {/* Exploits Panel */}
-          <a-plane
-            position="4 2 -2"
-            width="3"
-            height="2"
-            material="color: #220000; transparent: true; opacity: 0.9"
-            hologram-panel
-            panel-click="exploits"
+          <div 
+            className="absolute bg-gradient-to-br from-red-900/80 to-orange-900/80 backdrop-blur-sm border border-red-400/50 rounded-lg p-4 cursor-pointer hover:scale-105 transition-all duration-300"
+            style={{
+              width: '200px',
+              height: '150px',
+              transform: 'translateX(300px) translateY(-100px) rotateY(15deg) translateZ(50px)',
+            }}
+            onClick={() => handlePanelClick('exploits')}
           >
-            <a-text
-              position="0 0.7 0.1"
-              align="center"
-              value="EXPLOITS"
-              color="#ff0000"
-              font="msdf: #font"
-              width="8"
-            ></a-text>
-            <a-text
-              position="0 0 0.1"
-              align="center"
-              value={`Queue: ${exploitsInQueue}`}
-              color="#ff8888"
-              font="msdf: #font"
-              width="6"
-            ></a-text>
-          </a-plane>
+            <h3 className="text-orange-400 font-bold mb-2">EXPLOITS</h3>
+            <p className="text-orange-300 text-sm">Queue: {exploitsInQueue}</p>
+            <div className="mt-2 text-orange-300/70 text-xs">Click to open</div>
+          </div>
 
           {/* Sessions Panel */}
-          <a-plane
-            position="-4 -1 -2"
-            width="3"
-            height="2"
-            material="color: #000022; transparent: true; opacity: 0.9"
-            hologram-panel
-            panel-click="sessions"
+          <div 
+            className="absolute bg-gradient-to-br from-blue-900/80 to-indigo-900/80 backdrop-blur-sm border border-blue-400/50 rounded-lg p-4 cursor-pointer hover:scale-105 transition-all duration-300"
+            style={{
+              width: '200px',
+              height: '150px',
+              transform: 'translateX(-300px) translateY(100px) rotateY(-15deg) translateZ(50px)',
+            }}
+            onClick={() => handlePanelClick('sessions')}
           >
-            <a-text
-              position="0 0.7 0.1"
-              align="center"
-              value="SESSIONS"
-              color="#0088ff"
-              font="msdf: #font"
-              width="8"
-            ></a-text>
-            <a-text
-              position="0 0 0.1"
-              align="center"
-              value={`Active: ${activeSessions}`}
-              color="#88aaff"
-              font="msdf: #font"
-              width="6"
-            ></a-text>
-          </a-plane>
+            <h3 className="text-blue-400 font-bold mb-2">SESSIONS</h3>
+            <p className="text-blue-300 text-sm">Active: {activeSessions}</p>
+            <div className="mt-2 text-blue-300/70 text-xs">Click to open</div>
+          </div>
 
           {/* Settings Panel */}
-          <a-plane
-            position="4 -1 -2"
-            width="3"
-            height="2"
-            material="color: #220022; transparent: true; opacity: 0.9"
-            hologram-panel
-            panel-click="settings"
+          <div 
+            className="absolute bg-gradient-to-br from-purple-900/80 to-fuchsia-900/80 backdrop-blur-sm border border-purple-400/50 rounded-lg p-4 cursor-pointer hover:scale-105 transition-all duration-300"
+            style={{
+              width: '200px',
+              height: '150px',
+              transform: 'translateX(300px) translateY(100px) rotateY(15deg) translateZ(50px)',
+            }}
+            onClick={() => handlePanelClick('settings')}
           >
-            <a-text
-              position="0 0.7 0.1"
-              align="center"
-              value="SETTINGS"
-              color="#ff00ff"
-              font="msdf: #font"
-              width="8"
-            ></a-text>
-            <a-text
-              position="0 0 0.1"
-              align="center"
-              value="Configuration"
-              color="#ff88ff"
-              font="msdf: #font"
-              width="6"
-            ></a-text>
-          </a-plane>
-        </a-entity>
-
-        {/* 3D Modal Windows */}
-        {activePanel && (
-          <a-entity position="0 0 0">
-            <a-plane
-              position="0 2 -1"
-              width="8"
-              height="5"
-              material="color: #000000; transparent: true; opacity: 0.95"
-              hologram-panel
-            >
-              {/* Close Button */}
-              <a-plane
-                position="3.5 2 0.01"
-                width="0.5"
-                height="0.5"
-                material="color: #ff0000; transparent: true; opacity: 0.8"
-                panel-click="close"
-                onClick={closePanel}
-              >
-                <a-text
-                  position="0 0 0.01"
-                  align="center"
-                  value="X"
-                  color="#ffffff"
-                  font="msdf: #font"
-                  width="10"
-                ></a-text>
-              </a-plane>
-
-              {/* Modal Content based on activePanel */}
-              {activePanel === 'terminal' && (
-                <a-entity>
-                  <a-text
-                    position="0 1.5 0.01"
-                    align="center"
-                    value="TERMINAL INTERFACE"
-                    color="#00ff00"
-                    font="msdf: #font"
-                    width="8"
-                  ></a-text>
-                  
-                  {/* Input Field */}
-                  <a-plane
-                    id="terminal-input"
-                    position="0 0 0.01"
-                    width="6"
-                    height="0.5"
-                    material="color: #003300; transparent: true; opacity: 0.8"
-                    input-field="placeholder: Enter command..."
-                  >
-                    <a-text
-                      position="-2.8 0 0.01"
-                      align="left"
-                      value={inputValue || 'Enter command...'}
-                      color="#88ff88"
-                      font="msdf: #font"
-                      width="6"
-                    ></a-text>
-                  </a-plane>
-                  
-                  {/* Execute Button */}
-                  <a-plane
-                    position="0 -1 0.01"
-                    width="2"
-                    height="0.5"
-                    material="color: #006600; transparent: true; opacity: 0.8"
-                    panel-click="execute"
-                  >
-                    <a-text
-                      position="0 0 0.01"
-                      align="center"
-                      value="EXECUTE"
-                      color="#ffffff"
-                      font="msdf: #font"
-                      width="8"
-                    ></a-text>
-                  </a-plane>
-                </a-entity>
-              )}
-
-              {activePanel === 'exploits' && (
-                <a-entity>
-                  <a-text
-                    position="0 1.5 0.01"
-                    align="center"
-                    value="EXPLOIT MANAGER"
-                    color="#ff6600"
-                    font="msdf: #font"
-                    width="8"
-                  ></a-text>
-                  
-                  {/* Target Input */}
-                  <a-plane
-                    id="target-input"
-                    position="0 0.5 0.01"
-                    width="6"
-                    height="0.5"
-                    material="color: #330000; transparent: true; opacity: 0.8"
-                    input-field="placeholder: Target IP..."
-                  >
-                    <a-text
-                      position="-2.8 0 0.01"
-                      align="left"
-                      value={inputValue || 'Target IP...'}
-                      color="#ff8888"
-                      font="msdf: #font"
-                      width="6"
-                    ></a-text>
-                  </a-plane>
-                  
-                  {/* Start Attack Button */}
-                  <a-plane
-                    position="0 -0.5 0.01"
-                    width="3"
-                    height="0.5"
-                    material="color: #660000; transparent: true; opacity: 0.8"
-                    panel-click="attack"
-                  >
-                    <a-text
-                      position="0 0 0.01"
-                      align="center"
-                      value="START ATTACK"
-                      color="#ffffff"
-                      font="msdf: #font"
-                      width="8"
-                    ></a-text>
-                  </a-plane>
-                </a-entity>
-              )}
-
-              {activePanel === 'settings' && (
-                <a-entity>
-                  <a-text
-                    position="0 1.5 0.01"
-                    align="center"
-                    value="METASPLOIT SETTINGS"
-                    color="#ff00ff"
-                    font="msdf: #font"
-                    width="8"
-                  ></a-text>
-                  
-                  {/* Host Input */}
-                  <a-plane
-                    id="host-input"
-                    position="0 0.5 0.01"
-                    width="6"
-                    height="0.5"
-                    material="color: #330033; transparent: true; opacity: 0.8"
-                    input-field="placeholder: Host..."
-                  >
-                    <a-text
-                      position="-2.8 0 0.01"
-                      align="left"
-                      value={inputValue || 'localhost'}
-                      color="#ff88ff"
-                      font="msdf: #font"
-                      width="6"
-                    ></a-text>
-                  </a-plane>
-                  
-                  {/* Save Button */}
-                  <a-plane
-                    position="0 -0.5 0.01"
-                    width="2"
-                    height="0.5"
-                    material="color: #660066; transparent: true; opacity: 0.8"
-                    panel-click="save"
-                  >
-                    <a-text
-                      position="0 0 0.01"
-                      align="center"
-                      value="SAVE"
-                      color="#ffffff"
-                      font="msdf: #font"
-                      width="8"
-                    ></a-text>
-                  </a-plane>
-                </a-entity>
-              )}
-
-              {activePanel === 'sessions' && (
-                <a-entity>
-                  <a-text
-                    position="0 1.5 0.01"
-                    align="center"
-                    value="ACTIVE SESSIONS"
-                    color="#0088ff"
-                    font="msdf: #font"
-                    width="8"
-                  ></a-text>
-                  
-                  <a-text
-                    position="0 0 0.01"
-                    align="center"
-                    value={`Active Sessions: ${activeSessions}`}
-                    color="#88aaff"
-                    font="msdf: #font"
-                    width="6"
-                  ></a-text>
-                  
-                  {activeSessions === 0 && (
-                    <a-text
-                      position="0 -0.5 0.01"
-                      align="center"
-                      value="No active sessions"
-                      color="#888888"
-                      font="msdf: #font"
-                      width="6"
-                    ></a-text>
-                  )}
-                </a-entity>
-              )}
-            </a-plane>
-          </a-entity>
-        )}
-
-        {/* AI Assistant Avatar */}
-        <a-entity position="0 3 -1">
-          <a-box
-            width="0.8"
-            height="0.8"
-            depth="0.8"
-            material="color: #00ffff; transparent: true; opacity: 0.7"
-            animation="property: rotation; to: 0 360 0; loop: true; dur: 10000"
-          ></a-box>
-          <a-text
-            position="0 -1 0"
-            align="center"
-            value="AI ASSISTANT"
-            color="#00ffff"
-            font="msdf: #font"
-            width="6"
-          ></a-text>
-        </a-entity>
-
-        {/* Particle Systems */}
-        <a-entity
-          position="0 0 0"
-          particle-system="preset: snow; particleCount: 100; color: #00ffff, #0088ff; size: 0.1"
-        ></a-entity>
+            <h3 className="text-purple-400 font-bold mb-2">SETTINGS</h3>
+            <p className="text-purple-300 text-sm">Configuration</p>
+            <div className="mt-2 text-purple-300/70 text-xs">Click to open</div>
+          </div>
+        </div>
+        
+        {/* AI Assistant Hologram */}
+        <div 
+          className="absolute"
+          style={{
+            transform: 'translateY(-300px) translateZ(100px)',
+            transformStyle: 'preserve-3d'
+          }}
+        >
+          <div className="relative">
+            <div 
+              className="w-16 h-16 rounded-full bg-cyan-400/20 border border-cyan-400 animate-pulse"
+              style={{ 
+                animation: 'pulse 2s infinite ease-in-out',
+                boxShadow: '0 0 15px 5px rgba(6, 182, 212, 0.3)'
+              }}
+            />
+            <div className="absolute top-full mt-2 text-center w-full">
+              <span className="text-cyan-400 text-sm">AI ASSISTANT</span>
+            </div>
+          </div>
+        </div>
 
         {/* Grid Floor */}
-        <a-plane
-          position="0 -1 0"
-          rotation="-90 0 0"
-          width="20"
-          height="20"
-          material="color: #001122; transparent: true; opacity: 0.3; wireframe: true"
-        ></a-plane>
+        <div 
+          className="absolute"
+          style={{
+            width: '1000px',
+            height: '1000px',
+            transform: 'rotateX(90deg) translateZ(150px)',
+            background: 'radial-gradient(circle, rgba(8, 47, 73, 0.3) 1px, transparent 1px) 0 0 / 40px 40px'
+          }}
+        />
+      </div>
 
-        {/* Skybox */}
-        <a-sky color="#000011"></a-sky>
-      </a-scene>
+      {/* 3D Modal Windows */}
+      {activePanel && (
+        <VRModal
+          isOpen={true}
+          onClose={closeModal}
+          type={activePanel as 'settings' | 'terminal' | 'exploits' | 'sessions'}
+          onConfigSaved={onConfigSaved}
+          is3DMode={true}
+        />
+      )}
     </div>
   )
 }

@@ -2,7 +2,6 @@
 import { useState } from 'react'
 import { ChatInterface } from './ChatInterface'
 import { VRInterface } from './VRInterface'
-import { VRModal } from './VRModal'
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Monitor, Box, Settings, Terminal, Zap, Play } from "lucide-react"
@@ -29,7 +28,7 @@ export const MainInterface = ({ onConfigSaved }: MainInterfaceProps) => {
 
   return (
     <div className="w-full h-screen relative">
-      {/* Переключатель режимов */}
+      {/* Mode toggle */}
       <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
         <Badge variant={is3DMode ? 'default' : 'secondary'} className="text-xs">
           {is3DMode ? '3D Режим' : '2D Режим'}
@@ -44,7 +43,7 @@ export const MainInterface = ({ onConfigSaved }: MainInterfaceProps) => {
         </Button>
       </div>
 
-      {/* Быстрые действия только в 2D режиме */}
+      {/* Quick actions only in 2D mode */}
       {!is3DMode && (
         <div className="absolute top-4 left-4 z-50 space-y-2">
           <Button
@@ -86,22 +85,21 @@ export const MainInterface = ({ onConfigSaved }: MainInterfaceProps) => {
         </div>
       )}
 
-      {/* Основной интерфейс */}
+      {/* Main interface */}
       {is3DMode ? (
         <VRInterface onConfigSaved={onConfigSaved} />
       ) : (
         <ChatInterface onConfigSaved={onConfigSaved} />
       )}
 
-      {/* Модальные окна только для 2D режима */}
+      {/* Modal windows only for 2D mode - 3D mode has its own modals */}
       {modalType && !is3DMode && (
-        <VRModal
-          isOpen={true}
-          onClose={closeModal}
-          type={modalType}
-          onConfigSaved={onConfigSaved}
-          is3DMode={is3DMode}
-        />
+        <div className="absolute inset-0 z-40">
+          <div 
+            className="absolute inset-0 bg-black/50"
+            onClick={closeModal}
+          ></div>
+        </div>
       )}
     </div>
   )
