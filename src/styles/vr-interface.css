@@ -1,0 +1,104 @@
+
+/* VR Interface Styles */
+.vr-container {
+  background: radial-gradient(circle at center, #000033 0%, #000011 50%, #000000 100%);
+  overflow: hidden;
+}
+
+/* Holographic effects */
+.hologram-panel {
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  box-shadow: 
+    0 0 20px rgba(0, 255, 255, 0.2),
+    inset 0 0 20px rgba(0, 255, 255, 0.1);
+  background: linear-gradient(45deg, 
+    rgba(0, 255, 255, 0.1) 0%, 
+    rgba(0, 150, 255, 0.1) 50%, 
+    rgba(0, 255, 255, 0.1) 100%);
+}
+
+.hologram-panel:hover {
+  border-color: rgba(0, 255, 255, 0.6);
+  box-shadow: 
+    0 0 30px rgba(0, 255, 255, 0.4),
+    inset 0 0 30px rgba(0, 255, 255, 0.2);
+}
+
+/* Neon text glow */
+.neon-text {
+  text-shadow: 
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 15px currentColor;
+}
+
+/* Cyberpunk buttons */
+.cyber-button {
+  position: relative;
+  background: transparent;
+  border: 1px solid;
+  clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+  transition: all 0.3s ease;
+}
+
+.cyber-button:hover {
+  background: rgba(0, 255, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 255, 255, 0.3);
+}
+
+/* Particle effects */
+.particle {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 255, 255, 0.8) 0%, transparent 70%);
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .vr-container {
+    touch-action: manipulation;
+  }
+  
+  .hologram-panel {
+    backdrop-filter: blur(5px);
+  }
+  
+  .cyber-button {
+    min-height: 44px; /* Touch target size */
+    font-size: 14px;
+  }
+}
+
+/* VR mode adjustments */
+@media (display-mode: fullscreen) {
+  .vr-container {
+    background: #000000;
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .particle,
+  .hologram-panel,
+  .cyber-button {
+    animation: none;
+    transition: none;
+  }
+}
+
+/* Loading state */
+.vr-loading {
+  background: 
+    linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.2), transparent),
+    #000011;
+  background-size: 200px 100%;
+  animation: loading-shimmer 2s infinite;
+}
+
+@keyframes loading-shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}

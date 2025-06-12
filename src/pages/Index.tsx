@@ -1,6 +1,6 @@
 
 import { useState } from 'react'
-import { ChatInterface } from '@/components/ChatInterface'
+import { MainInterface } from '@/components/MainInterface'
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -22,8 +22,8 @@ const Index = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-gray-900">
-        <ChatInterface onConfigSaved={handleConfigSaved} />
+      <div className="min-h-screen bg-black">
+        <MainInterface onConfigSaved={handleConfigSaved} />
         <Toaster />
       </div>
     </QueryClientProvider>

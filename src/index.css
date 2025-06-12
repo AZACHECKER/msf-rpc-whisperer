@@ -1,6 +1,8 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+@import './styles/vr-interface.css';
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
 
@@ -99,5 +101,32 @@
 
   body {
     @apply bg-background text-foreground;
+    background: #000011;
+    overflow-x: hidden;
   }
+}
+
+/* VR and 3D specific styles */
+a-scene {
+  height: 100vh !important;
+  width: 100vw !important;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+/* Cyber UI elements */
+.cyber-panel {
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(0, 150, 255, 0.1));
+  border: 1px solid rgba(0, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.neon-glow {
+  box-shadow: 
+    0 0 5px currentColor,
+    0 0 10px currentColor,
+    0 0 15px currentColor,
+    0 0 20px currentColor;
 }
